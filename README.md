@@ -1,2 +1,2 @@
-# the_tree_auth
+# auth_service
 Auth services for The Tree Project
