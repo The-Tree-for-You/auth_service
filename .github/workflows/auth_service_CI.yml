@@ -1,0 +1,116 @@
+name: The Tree Auth Service CI
+
+on:
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+  issues: write
+  actions: write
+  checks: write
+  deployments: write
+  statuses: write
+  pull-requests: write
+
+env:
+  PYTHON_VERSION: '3.12' # 현재 Python 버전
+  POETRY_CACHE_DIR: '~/.cache/pypoetry'
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      # Poetry Cache 설정
+      - name: Cache Poetry packages
+        uses: actions/cache@v4
+        with:
+          path: |
+            ${{ env.POETRY_CACHE_DIR }}
+            ./.venv
+          key: ${{ runner.os }}-poetry-${{ hashFiles('**/poetry.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-poetry-
+
+      # Poetry 설치
+      - name: Install Poetry
+        run: |
+          curl -sSL https://install.python-poetry.org | python3 -
+          echo "export PATH=\"${HOME}/.local/bin:\${PATH}\"" >> $GITHUB_ENV
+          poetry --version
+      
+      # Poetry 가상환경 설정 및 의존성 설치
+      - name: Setup virtual environment
+        run: |
+          poetry config virtualenvs.create true
+          poetry config virtualenvs.in-project true
+          poetry install --no-root
+
+      # Python 코드 테스트 및 커버리지 측정
+      - name: Create Coverage Directory
+        run: |
+          mkdir -p coverages
+
+      - name: Run tests
+        run: |
+          poetry run pytest --cov=. --cov-report=xml:coverages/coverage_${{ secrets.SONAR_PROJECT_KEY}}.xml
+      
+      # SonarCloud 스캔
+      - name: SonarCloud scan
+        uses: SonarSource/sonarcloud-github-action@master
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        with:
+          args: >
+            -Dsonar.projectKey=${{ secrets.SONAR_PROJECT_KEY }}
+            -Dsonar.organization=${{ secrets.SONAR_ORGANIZATION }}
+            -Dsonar.host.url=https://sonarcloud.io
+            -Dsonar.sources=./auth_service
+            -Dsonar.python.coverage.reportPaths=coverages/coverage_${{ secrets.SONAR_PROJECT_KEY }}.xml
+        
+      # Docker 이미지 빌드
+      - name: Build Docker image
+        run: |
+          docker build -t ${{ secrets.SERVICE_NAME }}:latest .
+
+      # Amazon ECR 로그인 및 이미지 푸시
+
+      ## AWS 자격 증명 설명
+      - name: Configure AWS credentials
+        run: |
+          aws configure set aws_access_key_id ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws configure set aws_secret_access_key ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws configure set default.region ${{ secrets.AWS_REGION }}
+
+      ## Amazon ECR 로그인
+
+      - name: Login to AWS ECR
+        run: |
+          aws ecr get-login-password --region ${{ secrets.AWS_REGION }} \
+          | docker login --username AWS \
+          --password-stdin ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com
+      
+      ## Amazon ECR 이미지 푸시
+      - name: Push to AWS ECR
+        run: |
+          docker tag ${{ secrets.SERVICE_NAME }}:latest ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/${{ secrets.AWS_ECR_NAMESPACE}}/${{ secrets.SERVICE_NAME }}:latest
+          docker push ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/${{ secrets.AWS_ECR_NAMESPACE }}/${{ secrets.SERVICE_NAME }}:latest
+      
+      # Docker Hub 로그인 및 이미지 푸시
+      - name: Log in to Docker Hub
+        run: |
+          echo ${{ secrets.DOCKERHUB_TOKEN }} | docker login -u ${{ secrets.DOCKERHUB_USERNAME }} --password-stdin
+
+      - name: Push to Docker Hub
+        run: |
+          docker tag ${{ secrets.SERVICE_NAME }}:latest ${{ secrets.DOCKERHUB_USERNAME }}/${{ secrets.SERVICE_NAME }}:latest
+          docker push ${{ secrets.DOCKERHUB_USERNAME }}/${{ secrets.SERVICE_NAME }}:latest
