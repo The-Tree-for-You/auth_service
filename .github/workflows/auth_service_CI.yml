@@ -39,12 +39,12 @@ jobs:
           echo "export PATH=\"${HOME}/.local/bin:\${PATH}\"" >> $GITHUB_ENV
           poetry --version
       
-      # Poetry 가상환경 설정 및 의존성 설치
+      # 코드 테스트에 필요한 Poetry 가상환경 설정 및 의존성 설치
       - name: Setup virtual environment
         run: |
           poetry config virtualenvs.create true
           poetry config virtualenvs.in-project true
-          poetry install --no-root
+          poetry install --no-interaction
 
       # Python 코드 테스트 및 커버리지 측정
       - name: Create Coverage Directory
