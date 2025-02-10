@@ -7,9 +7,9 @@ erDiagram
     %% Auth 서비스 데이터베이스 (Social Login 기반)
     AUTH_USER {
       string id PK "사용자 식별자"
-      string email "이메일 주소소
+      string email "이메일 주소"
       string provider "소셜 로그인 제공자 (예: Google, Facebook)"
-      string social_id "소셜 로그인 사용자 ID자
+      string social_id "소셜 로그인 사용자 ID"
       timestamp created_at "생성일자"
     }
     

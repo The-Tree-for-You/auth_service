@@ -5,21 +5,12 @@ on:
     branches:
       - main
 
-permissions:
-  contents: read
-  issues: write
-  actions: write
-  checks: write
-  deployments: write
-  statuses: write
-  pull-requests: write
-
 env:
   PYTHON_VERSION: '3.12' # 현재 Python 버전
   POETRY_CACHE_DIR: '~/.cache/pypoetry'
 
 jobs:
-  build-and-test:
+  TESTING:
     runs-on: ubuntu-latest
     steps:
       - name: Check out code
@@ -62,7 +53,7 @@ jobs:
 
       - name: Run tests
         run: |
-          poetry run pytest --cov=. --cov-report=xml:coverages/coverage_${{ secrets.SONAR_PROJECT_KEY}}.xml
+          poetry run pytest --cov=auth_service tests --cov-report=xml:coverages/coverage_${{ secrets.SONAR_PROJECT_KEY}}.xml
       
       # SonarCloud 스캔
       - name: SonarCloud scan
@@ -76,14 +67,25 @@ jobs:
             -Dsonar.host.url=https://sonarcloud.io
             -Dsonar.sources=./auth_service
             -Dsonar.python.coverage.reportPaths=coverages/coverage_${{ secrets.SONAR_PROJECT_KEY }}.xml
-        
+
+      # Quality Gate 확인
+      - name: Quality Gate
+        id: sonarqube-quailty-gate-check
+        uses: SonarSource/sonarcloud-github-action@master
+        timeout-minutes: 5
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+  
+  BUILD_AND_PUBLISH:
+    needs: TESTING
+    runs-on: ubuntu-latest
+    steps:
       # Docker 이미지 빌드
       - name: Build Docker image
         run: |
           docker build -t ${{ secrets.SERVICE_NAME }}:latest .
 
       # Amazon ECR 로그인 및 이미지 푸시
-
       ## AWS 자격 증명 설명
       - name: Configure AWS credentials
         run: |
@@ -92,7 +94,6 @@ jobs:
           aws configure set default.region ${{ secrets.AWS_REGION }}
 
       ## Amazon ECR 로그인
-
       - name: Login to AWS ECR
         run: |
           aws ecr get-login-password --region ${{ secrets.AWS_REGION }} \
@@ -105,6 +106,7 @@ jobs:
           docker tag ${{ secrets.SERVICE_NAME }}:latest ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/${{ secrets.AWS_ECR_NAMESPACE}}/${{ secrets.SERVICE_NAME }}:latest
           docker push ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/${{ secrets.AWS_ECR_NAMESPACE }}/${{ secrets.SERVICE_NAME }}:latest
       
+          
       # Docker Hub 로그인 및 이미지 푸시
       - name: Log in to Docker Hub
         run: |

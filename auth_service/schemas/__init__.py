@@ -1,1 +1,1 @@
-from . import auth_schemas
+from .auth_schemas import *
