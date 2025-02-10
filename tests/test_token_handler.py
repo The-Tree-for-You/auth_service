@@ -62,7 +62,7 @@ def test_create_access_token(dummy_user_data):
     assert payload["sub"] == dummy_user_data["email"]
     assert payload["token_type"] == access_token_type
 
-    expiration_delta = datetime.fromtimestamp(payload["exp"]) - (datetime.now() + timedelta(hours=9))   # JWT 토큰은 UTC 기준으로 생성되므로 한국 시간으로 변환
+    expiration_delta = datetime.fromtimestamp(payload["exp"]) - datetime.now()
     expectation_delta = timedelta(minutes=access_token_expire_minutes)
     assert abs(expiration_delta - expectation_delta) < timedelta(seconds=1)
 
@@ -82,7 +82,7 @@ def test_create_refresh_token(dummy_user_data):
     assert payload["sub"] == dummy_user_data["email"]
     assert payload["token_type"] == refresh_token_type
 
-    expiration_delta = datetime.fromtimestamp(payload["exp"]) - (datetime.now() + timedelta(hours=9))   # JWT 토큰은 UTC 기준으로 생성되므로 한국 시간으로 변환
+    expiration_delta = datetime.fromtimestamp(payload["exp"]) - datetime.now()
     expectation_delta = timedelta(days=refresh_token_expire_days)
     assert abs(expiration_delta - expectation_delta) < timedelta(seconds=1)
 
@@ -117,7 +117,7 @@ def test_verify_expired_access_token(dummy_user_data):
     except HTTPException as e:
         # 토큰 만료로 인한 예외 발생 검증
         assert e.status_code == status.HTTP_401_UNAUTHORIZED
-        assert e.detail == "Invaild authentication credentials"
+        assert e.detail == "Invalid authentication credentials"
 
 ## 토큰 타입 불일치로 인한 검증 실패
 def test_verify_invalid_token_type(dummy_user_data):
