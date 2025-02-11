@@ -1,6 +1,5 @@
 from sqlalchemy import Column, Integer, String, DateTime, func
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, declarative_base
 
 Base = declarative_base()
 
@@ -14,4 +13,3 @@ class User(Base):
     social_provider = Column(String, nullable=False, index=True)
     social_id = Column(String, nullable=False, index=True, unique=True) # 고유키
     created_at = Column(DateTime, server_default=func.now())
-    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())

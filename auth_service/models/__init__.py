@@ -1,1 +1,1 @@
-from . import auth_model
+from .auth_model import *

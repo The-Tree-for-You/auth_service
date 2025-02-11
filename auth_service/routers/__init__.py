@@ -1,1 +1,1 @@
-from . import auth
+from .auth_router import *

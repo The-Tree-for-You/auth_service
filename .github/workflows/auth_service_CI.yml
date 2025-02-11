@@ -5,21 +5,12 @@ on:
     branches:
       - main
 
-permissions:
-  contents: read
-  issues: write
-  actions: write
-  checks: write
-  deployments: write
-  statuses: write
-  pull-requests: write
-
 env:
   PYTHON_VERSION: '3.12' # 현재 Python 버전
   POETRY_CACHE_DIR: '~/.cache/pypoetry'
 
 jobs:
-  build-and-test:
+  TESTING:
     runs-on: ubuntu-latest
     steps:
       - name: Check out code
@@ -48,12 +39,12 @@ jobs:
           echo "export PATH=\"${HOME}/.local/bin:\${PATH}\"" >> $GITHUB_ENV
           poetry --version
       
-      # Poetry 가상환경 설정 및 의존성 설치
+      # 코드 테스트에 필요한 Poetry 가상환경 설정 및 의존성 설치
       - name: Setup virtual environment
         run: |
           poetry config virtualenvs.create true
           poetry config virtualenvs.in-project true
-          poetry install --no-root
+          poetry install --no-interaction
 
       # Python 코드 테스트 및 커버리지 측정
       - name: Create Coverage Directory
@@ -62,28 +53,35 @@ jobs:
 
       - name: Run tests
         run: |
-          poetry run pytest --cov=. --cov-report=xml:coverages/coverage_${{ secrets.SONAR_PROJECT_KEY}}.xml
+          poetry run pytest --cov=auth_service tests --cov-report=xml:coverages/coverage_${{ secrets.SONAR_PROJECT_KEY}}.xml
       
       # SonarCloud 스캔
       - name: SonarCloud scan
-        uses: SonarSource/sonarcloud-github-action@master
+        uses: SonarSource/sonarqube-scan-action@v4.2.1
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: https://sonarcloud.io
         with:
           args: >
             -Dsonar.projectKey=${{ secrets.SONAR_PROJECT_KEY }}
             -Dsonar.organization=${{ secrets.SONAR_ORGANIZATION }}
-            -Dsonar.host.url=https://sonarcloud.io
             -Dsonar.sources=./auth_service
+            -Dsonar.python.version=3.12
             -Dsonar.python.coverage.reportPaths=coverages/coverage_${{ secrets.SONAR_PROJECT_KEY }}.xml
-        
+  
+  BUILD_AND_PUBLISH:
+    needs: TESTING
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+
       # Docker 이미지 빌드
       - name: Build Docker image
         run: |
-          docker build -t ${{ secrets.SERVICE_NAME }}:latest .
+          docker build -f Dockerfile -t ${{ secrets.SERVICE_NAME }}:latest .
 
       # Amazon ECR 로그인 및 이미지 푸시
-
       ## AWS 자격 증명 설명
       - name: Configure AWS credentials
         run: |
@@ -92,7 +90,6 @@ jobs:
           aws configure set default.region ${{ secrets.AWS_REGION }}
 
       ## Amazon ECR 로그인
-
       - name: Login to AWS ECR
         run: |
           aws ecr get-login-password --region ${{ secrets.AWS_REGION }} \
@@ -105,6 +102,7 @@ jobs:
           docker tag ${{ secrets.SERVICE_NAME }}:latest ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/${{ secrets.AWS_ECR_NAMESPACE}}/${{ secrets.SERVICE_NAME }}:latest
           docker push ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/${{ secrets.AWS_ECR_NAMESPACE }}/${{ secrets.SERVICE_NAME }}:latest
       
+          
       # Docker Hub 로그인 및 이미지 푸시
       - name: Log in to Docker Hub
         run: |

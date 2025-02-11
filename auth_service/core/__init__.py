@@ -1,1 +1,2 @@
-from . import config, database
+from .config import *
+from .database import *
