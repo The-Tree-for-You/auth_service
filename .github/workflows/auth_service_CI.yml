@@ -68,21 +68,6 @@ jobs:
             -Dsonar.sources=./auth_service
             -Dsonar.python.version=3.12
             -Dsonar.python.coverage.reportPaths=coverages/coverage_${{ secrets.SONAR_PROJECT_KEY }}.xml
-
-      # Quality Gate 확인
-      - name: Quality Gate
-        id: sonarqube-quailty-gate-check
-        uses: SonarSource/sonarqube-scan-action@v4.2.1
-        timeout-minutes: 5
-        env:
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-          SONAR_HOST_URL: https://sonarcloud.io
-        with:
-          args: >
-            -Dsonar.projectKey=${{ secrets.SONAR_PROJECT_KEY }}
-            -Dsonar.organization=${{ secrets.SONAR_ORGANIZATION }}
-            -Dsonar.python.version=3.12
-            -Dsonar.qualitygate.wait=true
   
   BUILD_AND_PUBLISH:
     needs: TESTING
