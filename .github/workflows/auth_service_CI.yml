@@ -57,24 +57,25 @@ jobs:
       
       # SonarCloud 스캔
       - name: SonarCloud scan
-        uses: sonarsource/sonarcloud-github-action@v4.0.0
+        uses: SonarSource/sonarqube-scan-action@v4.2.1
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: https://sonarcloud.io
         with:
           args: >
             -Dsonar.projectKey=${{ secrets.SONAR_PROJECT_KEY }}
             -Dsonar.organization=${{ secrets.SONAR_ORGANIZATION }}
-            -Dsonar.host.url=https://sonarcloud.io
             -Dsonar.sources=./auth_service
             -Dsonar.python.coverage.reportPaths=coverages/coverage_${{ secrets.SONAR_PROJECT_KEY }}.xml
 
       # Quality Gate 확인
       - name: Quality Gate
         id: sonarqube-quailty-gate-check
-        uses: sonarsource/sonarcloud-github-action@v4.0.0
+        uses: SonarSource/sonarqube-scan-action@v4.2.1
         timeout-minutes: 5
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: https://sonarcloud.io
   
   BUILD_AND_PUBLISH:
     needs: TESTING
