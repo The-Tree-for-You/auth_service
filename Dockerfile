@@ -1,6 +1,6 @@
 # Build stage
 FROM python:3.12 as builder
-WORKDIR /
+WORKDIR /app
 
 ## Install poetry and dependencies
 RUN pip install --upgrade pip && pip install poetry
