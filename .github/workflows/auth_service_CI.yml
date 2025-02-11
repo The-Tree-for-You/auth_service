@@ -57,7 +57,7 @@ jobs:
       
       # SonarCloud 스캔
       - name: SonarCloud scan
-        uses: SonarSource/sonarcloud-github-action@master
+        uses: sonarsource/sonarcloud-github-action@v4.0.0
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         with:
@@ -71,7 +71,7 @@ jobs:
       # Quality Gate 확인
       - name: Quality Gate
         id: sonarqube-quailty-gate-check
-        uses: SonarSource/sonarcloud-github-action@master
+        uses: sonarsource/sonarcloud-github-action@v4.0.0
         timeout-minutes: 5
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
